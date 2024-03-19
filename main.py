@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 from datetime import timedelta
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 
 start = time.time()
 batchsize = 16
@@ -19,7 +22,7 @@ data =  torchaudio.datasets.LIBRISPEECH(root ='./LibreSpeech', url = 'dev-clean'
 # Gets just the waveform from the data, that is all we need as both data, and label. 
 data_waveform_raw = [sample[0] for sample in data]
 
-#Splitting all tensors up into 
+# Splitting all tensors up into 
 def split_tensor(tensor, split_length=512):
     tensor_length = tensor.size(1)
     num_splits = tensor_length // split_length
@@ -36,39 +39,35 @@ for tensor in data_waveform_raw:
 # Split dataset into training, validation and testsets 
 waveform_train, waveform_val, waveform_test = torch.utils.data.random_split(waveform, [int(0.7*len(waveform)+1),int(0.2*len(waveform)),int(0.1*len(waveform))])
 # Setting up a data loader to manage batchsize and so on.
-#print(len(waveform)) # number of samples
 data_loader = torch.utils.data.DataLoader(dataset=waveform_train, batch_size= batchsize, shuffle= True,)
 dataiter = iter(data_loader)
 waweform = next(dataiter)
-#print(torch.min(waveform[0]), torch.max(waveform[0]))
 
+# Defining the device, so the model is trained with a cuda device if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# Define model 
 
+# Define model 
 class Autoencoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.encoder = nn.Sequential(
             # Remember to change input -and outputsize when changing the splicing of the data
             nn.Linear(512, 256),
-            nn.ReLU(),
+            nn.RReLU(),
             nn.Linear(256, 128),
-            nn.ReLU(),
+            nn.RReLU(),
             nn.Linear(128, 64),
-            nn.ReLU(),
+            nn.RReLU(),
             nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 16)
+            nn.RReLU()
         )
         self.decoder = nn.Sequential(
-            nn.Linear(16, 32),
-            nn.ReLU(),
             nn.Linear(32, 64),
-            nn.ReLU(),
+            nn.RReLU(),
             nn.Linear(64, 128),
-            nn.ReLU(),
+            nn.RReLU(),
             nn.Linear(128, 256),
-            nn.ReLU(),
+            nn.RReLU(),
             nn.Linear(256, 512),
             nn.Tanh()
         )
@@ -83,7 +82,7 @@ criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
 # Train model
-epochs = 1
+epochs = 100
 epochs_plot = []
 output = []
 train_loss_plot = []
@@ -117,6 +116,8 @@ stop = time.time()
 print(f'Total time training {epochs} epochs, with batchsize {batchsize}: {timedelta(seconds=(stop-start))}')
 
 plt.figure()
-plt.plot(epochs_plot, train_loss_plot, color = 'blue')
-plt.plot(epochs_plot, val_loss_plot, color = 'red')
+plt.title('Training and Validation loss')
+plt.plot(epochs_plot, train_loss_plot, color = 'blue', label = 'Training loss')
+plt.plot(epochs_plot, val_loss_plot, color = 'red', label = 'Validation loss')
+plt.legend()
 plt.show()
