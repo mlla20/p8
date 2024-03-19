@@ -6,7 +6,12 @@ import torch.optim as optim
 import torchvision.transforms
 import speechbrain
 import matplotlib.pyplot as plt
+import numpy as np
+import time
+from datetime import timedelta
 
+start = time.time()
+batchsize = 16
 # Load data
 # Link til dataset doc: https://pytorch.org/audio/main/generated/torchaudio.datasets.LIBRISPEECH.html#torchaudio.datasets.LIBRISPEECH
 data =  torchaudio.datasets.LIBRISPEECH(root ='./LibreSpeech', url = 'dev-clean', download= True) 
@@ -28,11 +33,11 @@ waveform = []
 for tensor in data_waveform_raw:
     waveform.extend(split_tensor(tensor))
 
-
+# Split dataset into training, validation and testsets 
+waveform_train, waveform_val, waveform_test = torch.utils.data.random_split(waveform, [int(0.7*len(waveform)+1),int(0.2*len(waveform)),int(0.1*len(waveform))])
 # Setting up a data loader to manage batchsize and so on.
 #print(len(waveform)) # number of samples
-data_loader = torch.utils.data.DataLoader(dataset=waveform, batch_size= 16, shuffle= True,)
-
+data_loader = torch.utils.data.DataLoader(dataset=waveform_train, batch_size= batchsize, shuffle= True,)
 dataiter = iter(data_loader)
 waweform = next(dataiter)
 #print(torch.min(waveform[0]), torch.max(waveform[0]))
@@ -80,6 +85,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 # Train model
 epochs = 1
 output = []
+train_loss_plot = []
+val_loss_plot = []
 print('Beginning training')
 for epoch in range(epochs):
     i = 0
@@ -91,6 +98,19 @@ for epoch in range(epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        if i % 2000 == 1999:
-           print(f'Epoch: {epoch + 1}, loss: {loss.item():.6f}, and {i}')
-        i += 1
+        #if i % 2000 == 1999:
+        #   print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and iteration: {i}')
+        #i += 1
+    # Calculating validation loss once per epoch 
+    val_data = waveform_val[np.random.randint(0,len(waveform_val))].to(device)
+    val_recon = model(val_data)
+    val_loss = criterion(val_recon, val_data)
+
+    train_loss_plot.append(loss.item())
+    val_loss_plot.append(val_loss.item())
+
+    print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and Validation loss: {val_loss.item():.6f}')
+
+stop = time.time()
+print(f'Total time training {epochs} with batchsize {batchsize}: {timedelta(seconds=(stop-start))}')
+print(train_loss_plot, val_loss_plot)
