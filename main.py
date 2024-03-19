@@ -84,6 +84,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
 # Train model
 epochs = 1
+epochs_plot = []
 output = []
 train_loss_plot = []
 val_loss_plot = []
@@ -108,9 +109,14 @@ for epoch in range(epochs):
 
     train_loss_plot.append(loss.item())
     val_loss_plot.append(val_loss.item())
+    epochs_plot.append(epoch + 1)
 
     print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and Validation loss: {val_loss.item():.6f}')
 
 stop = time.time()
-print(f'Total time training {epochs} with batchsize {batchsize}: {timedelta(seconds=(stop-start))}')
-print(train_loss_plot, val_loss_plot)
+print(f'Total time training {epochs} epochs, with batchsize {batchsize}: {timedelta(seconds=(stop-start))}')
+
+plt.figure()
+plt.plot(epochs_plot, train_loss_plot, color = 'blue')
+plt.plot(epochs_plot, val_loss_plot, color = 'red')
+plt.show()
