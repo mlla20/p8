@@ -52,23 +52,31 @@ class Autoencoder(nn.Module):
         super().__init__()
         self.encoder = nn.Sequential(
             # Remember to change input -and outputsize when changing the splicing of the data
-            nn.Linear(512, 256),
+            nn.Conv1d(1,1,7,1),
+            nn.RReLU(),
+            nn.Linear(506, 256),
             nn.RReLU(),
             nn.Linear(256, 128),
             nn.RReLU(),
             nn.Linear(128, 64),
             nn.RReLU(),
             nn.Linear(64, 32),
-            nn.RReLU()
+            nn.RReLU(),
+            nn.Conv1d(1,1,2,1),
+            nn.Tanh()
         )
         self.decoder = nn.Sequential(
-            nn.Linear(32, 64),
+            nn.Conv1d(1,1,2,1),
+            nn.RReLU(),
+            nn.Linear(30, 64),
             nn.RReLU(),
             nn.Linear(64, 128),
             nn.RReLU(),
             nn.Linear(128, 256),
             nn.RReLU(),
             nn.Linear(256, 512),
+            nn.RReLU(),
+            nn.Conv1d(1,1,7,1, padding=3),
             nn.Tanh()
         )
     def forward(self, x):
@@ -79,7 +87,7 @@ class Autoencoder(nn.Module):
 # Define loss and optimizer 
 model = Autoencoder().to(device)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-9)
 
 # Train model
 epochs = 100
