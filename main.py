@@ -68,23 +68,35 @@ class Autoencoder(nn.Module):
         super().__init__()
         self.encoder = nn.Sequential(
             # Remember to change input -and outputsize when changing the splicing of the data
-            nn.Conv1d(1,1,7,1),
+            nn.Conv1d(1,4,5,1, padding = 'same'),
             nn.RReLU(),
-            nn.Linear(154, 128),
+            nn.Conv1d(4,8,5,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(8,8,5,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(8,8,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(8,16,5,2, padding= 2),
             nn.RReLU(),
-            nn.Linear(128, 64),
+            nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,3,2),
             nn.RReLU(),
-            nn.Conv1d(1,1,2,1),
+            nn.Conv1d(16,8,3,1, padding='same'),
             nn.Tanh()
         )
         self.decoder = nn.Sequential(
-            nn.Conv1d(1,1,2,1),
+            nn.Conv1d(8,16,3,1, padding= 'same'),
             nn.RReLU(),
-            nn.Linear(62, 128),
+            nn.ConvTranspose1d(16,16,3,2, padding= 1, output_padding= 1),
+            nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
             nn.RReLU(),
-            nn.Linear(128, 160),
+            nn.ConvTranspose1d(16,8,5,2, output_padding=1),
+            nn.Conv1d(8,8,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(8,8,5,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(8,4,5,1, dilation= 1,padding = 'same'),
             nn.RReLU(),
-            nn.Conv1d(1,1,7,1, padding=3),
+            nn.Conv1d(4,1,5,1, padding='same'),
             nn.Tanh()
         )
     def forward(self, x):
@@ -95,10 +107,10 @@ class Autoencoder(nn.Module):
 # Define loss and optimizer 
 model = Autoencoder().to(device)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-6)
 
 # Train model
-epochs = 100
+epochs = 20
 epochs_plot = []
 output = []
 train_loss_plot = []
