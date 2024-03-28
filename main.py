@@ -14,7 +14,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
 start = time.time()
-batchsize = 16
+batchsize = 512
 # Load data
 # Link til dataset doc: https://pytorch.org/audio/main/generated/torchaudio.datasets.LIBRISPEECH.html#torchaudio.datasets.LIBRISPEECH
 data =  torchaudio.datasets.LIBRISPEECH(root ='./LibreSpeech', url = 'dev-clean', download= True) 
@@ -22,8 +22,24 @@ data =  torchaudio.datasets.LIBRISPEECH(root ='./LibreSpeech', url = 'dev-clean'
 # Gets just the waveform from the data, that is all we need as both data, and label. 
 data_waveform_raw = [sample[0] for sample in data]
 
+# Normalizing all waveforms to the interval -1 to 1
+def normalize_tensor(tensor):
+    # Find the maximum and minimum values in the tensor
+    max_val = tensor.max()
+    min_val = tensor.min()
+    
+    # Normalize the tensor
+    normalized_tensor = 2 * (tensor - min_val) / (max_val - min_val) - 1
+    
+    return normalized_tensor.unsqueeze(0)
+
+waveform_norm = []
+
+for tensor in data_waveform_raw:
+    waveform_norm.extend(normalize_tensor(tensor))
+
 # Splitting all tensors up into 
-def split_tensor(tensor, split_length=512):
+def split_tensor(tensor, split_length=160):
     tensor_length = tensor.size(1)
     num_splits = tensor_length // split_length
     split_tensors = []
@@ -33,7 +49,7 @@ def split_tensor(tensor, split_length=512):
 
 waveform = []
 
-for tensor in data_waveform_raw:
+for tensor in waveform_norm:
     waveform.extend(split_tensor(tensor))
 
 # Split dataset into training, validation and testsets 
@@ -54,13 +70,9 @@ class Autoencoder(nn.Module):
             # Remember to change input -and outputsize when changing the splicing of the data
             nn.Conv1d(1,1,7,1),
             nn.RReLU(),
-            nn.Linear(506, 256),
-            nn.RReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(154, 128),
             nn.RReLU(),
             nn.Linear(128, 64),
-            nn.RReLU(),
-            nn.Linear(64, 32),
             nn.RReLU(),
             nn.Conv1d(1,1,2,1),
             nn.Tanh()
@@ -68,13 +80,9 @@ class Autoencoder(nn.Module):
         self.decoder = nn.Sequential(
             nn.Conv1d(1,1,2,1),
             nn.RReLU(),
-            nn.Linear(30, 64),
+            nn.Linear(62, 128),
             nn.RReLU(),
-            nn.Linear(64, 128),
-            nn.RReLU(),
-            nn.Linear(128, 256),
-            nn.RReLU(),
-            nn.Linear(256, 512),
+            nn.Linear(128, 160),
             nn.RReLU(),
             nn.Conv1d(1,1,7,1, padding=3),
             nn.Tanh()
@@ -87,7 +95,7 @@ class Autoencoder(nn.Module):
 # Define loss and optimizer 
 model = Autoencoder().to(device)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-9)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
 # Train model
 epochs = 100
