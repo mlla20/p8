@@ -39,7 +39,7 @@ for tensor in data_waveform_raw:
     waveform_norm.extend(normalize_tensor(tensor))
 
 # Splitting all tensors up into 
-def split_tensor(tensor, split_length=160):
+def split_tensor(tensor, split_length=160): # 160 samples is chosen to get 10 ms from the signal.
     tensor_length = tensor.size(1)
     num_splits = tensor_length // split_length
     split_tensors = []
@@ -89,7 +89,7 @@ class Autoencoder(nn.Module):
             nn.Conv1d(16,16,5,1, dilation= 3, padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 9, padding = 'same'),
             # Convolution to reduce dimension
-            #nn.Conv1d(16,16,3,2),
+            nn.Conv1d(16,16,3,2),
             nn.RReLU(),
             nn.Conv1d(16,8,3,1, padding='same'),
             nn.Tanh()
@@ -98,21 +98,21 @@ class Autoencoder(nn.Module):
             nn.Conv1d(8,16,3,1, padding= 'same'),
             nn.RReLU(),
             # Transpose convoluiton to upsample 
-            #nn.ConvTranspose1d(16,16,3,2, padding= 1, output_padding= 1),
+            nn.ConvTranspose1d(16,16,3,2, padding= 0, output_padding= 0),
             # Dilation kernals
             nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
             nn.RReLU(),
             # Transpose convolution to upsample
-            nn.ConvTranspose1d(16,16,3,2, padding= 1, output_padding= 1),
+            nn.ConvTranspose1d(16,16,3,2, padding= 0, output_padding= 0),
             # Dilation kernals
             nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
             nn.RReLU(),
             # Transpose convoluiton to upsample
-            nn.ConvTranspose1d(16,8,5,2, padding= 0, output_padding= 1),
+            nn.ConvTranspose1d(16,8,5,2, padding= 1, output_padding= 1),
             # Dilation kernals
             nn.Conv1d(8,8,5,1, dilation= 9,padding = 'same'),
             nn.Conv1d(8,8,5,1, dilation= 3,padding = 'same'),
@@ -148,9 +148,7 @@ for epoch in range(epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        #if i % 2000 == 1999:
-        #   print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and iteration: {i}')
-        #i += 1
+
     # Calculating validation loss once per epoch 
     val_data = waveform_val[np.random.randint(0,len(waveform_val))].to(device)
     val_recon = model(val_data)
