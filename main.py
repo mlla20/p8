@@ -70,15 +70,26 @@ class Autoencoder(nn.Module):
             # Remember to change input -and outputsize when changing the splicing of the data
             nn.Conv1d(1,4,5,1, padding = 'same'),
             nn.RReLU(),
-            nn.Conv1d(4,8,5,1, dilation= 1,padding = 'same'),
-            nn.Conv1d(8,8,5,1, dilation= 3,padding = 'same'),
-            nn.Conv1d(8,8,5,1, dilation= 9,padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(4,8,5,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(8,8,5,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(8,8,5,1, dilation= 9, padding = 'same'),
+            # Convolution to reduce dimension
             nn.Conv1d(8,16,5,2, padding= 2),
             nn.RReLU(),
-            nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
-            nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
-            nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(16,16,5,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 9, padding = 'same'),
+            # Convolution to reduce dimension
             nn.Conv1d(16,16,3,2),
+            nn.RReLU(),
+            # Dilation kernals
+            nn.Conv1d(16,16,5,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 9, padding = 'same'),
+            # Convolution to reduce dimension
+            #nn.Conv1d(16,16,3,2),
             nn.RReLU(),
             nn.Conv1d(16,8,3,1, padding='same'),
             nn.Tanh()
@@ -86,12 +97,23 @@ class Autoencoder(nn.Module):
         self.decoder = nn.Sequential(
             nn.Conv1d(8,16,3,1, padding= 'same'),
             nn.RReLU(),
-            nn.ConvTranspose1d(16,16,3,2, padding= 1, output_padding= 1),
+            # Transpose convoluiton to upsample 
+            #nn.ConvTranspose1d(16,16,3,2, padding= 1, output_padding= 1),
+            # Dilation kernals
             nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
             nn.RReLU(),
-            nn.ConvTranspose1d(16,8,5,2, output_padding=1),
+            # Transpose convolution to upsample
+            nn.ConvTranspose1d(16,16,3,2, padding= 1, output_padding= 1),
+            # Dilation kernals
+            nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
+            nn.RReLU(),
+            # Transpose convoluiton to upsample
+            nn.ConvTranspose1d(16,8,5,2, padding= 0, output_padding= 1),
+            # Dilation kernals
             nn.Conv1d(8,8,5,1, dilation= 9,padding = 'same'),
             nn.Conv1d(8,8,5,1, dilation= 3,padding = 'same'),
             nn.Conv1d(8,4,5,1, dilation= 1,padding = 'same'),
@@ -107,10 +129,10 @@ class Autoencoder(nn.Module):
 # Define loss and optimizer 
 model = Autoencoder().to(device)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-6)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
 # Train model
-epochs = 20
+epochs = 100
 epochs_plot = []
 output = []
 train_loss_plot = []
