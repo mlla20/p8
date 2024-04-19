@@ -3,17 +3,11 @@ import torch.nn as nn
 import torchaudio
 from torch.utils.data import Dataset
 import torch.optim as optim
-import torchvision.transforms
-import speechbrain
 import matplotlib.pyplot as plt
 import numpy as np
-import time
-from datetime import timedelta
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-
-start = time.time()
 batchsize = 512
 # Load data
 # Link til dataset doc: https://pytorch.org/audio/main/generated/torchaudio.datasets.LIBRISPEECH.html#torchaudio.datasets.LIBRISPEECH
@@ -149,11 +143,11 @@ model = Autoencoder().to(device)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-print(sum(p.numel() for p in model.parameters()))
-print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+#print(sum(p.numel() for p in model.parameters()))
+#print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
 # Train model
-epochs = 100
+epochs = 2
 epochs_plot = []
 output = []
 train_loss_plot = []
@@ -179,14 +173,13 @@ for epoch in range(epochs):
     val_loss_plot.append(val_loss.item())
     epochs_plot.append(epoch + 1)
 
-    print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and Validation loss: {val_loss.item():.6f}')
+    #print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and Validation loss: {val_loss.item():.6f}')
 
-stop = time.time()
-print(f'Total time training {epochs} epochs, with batchsize {batchsize}: {timedelta(seconds=(stop-start))}')
+print(f'Total time training {epochs} epochs, with batchsize {batchsize}')
 
 plt.figure()
 plt.title('Training and Validation loss')
 plt.plot(epochs_plot, train_loss_plot, color = 'blue', label = 'Training loss')
 plt.plot(epochs_plot, val_loss_plot, color = 'red', label = 'Validation loss')
 plt.legend()
-plt.show()
+plt.savefig('ungabungaplot.png')
