@@ -8,11 +8,15 @@ import numpy as np
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-batchsize = 512
+batchsize = 4096
 # Load data
 # Link til dataset doc: https://pytorch.org/audio/main/generated/torchaudio.datasets.LIBRISPEECH.html#torchaudio.datasets.LIBRISPEECH
-data =  torchaudio.datasets.LIBRISPEECH(root ='./LibreSpeech', url = 'dev-clean', download= True) 
+data =  torchaudio.datasets.LIBRISPEECH(root = '/home/student.aau.dk/mlla20/p8/LibriSpeech', url = 'train-clean-100', download= True) 
 
+# Defining the device, so the model is trained with a cuda device if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+print('Normalizing data')
 # Gets just the waveform from the data, that is all we need as both data, and label. 
 data_waveform_raw = [sample[0] for sample in data]
 
@@ -22,24 +26,25 @@ def normalize_tensor(tensor):
     max_val = tensor.max()
     min_val = tensor.min()
     
-    # Normalize the tensor
-    normalized_tensor = 2 * (tensor - min_val) / (max_val - min_val) - 1
+    # Normalize the tensor in-place
+    tensor.sub_(min_val).div_(max_val - min_val).mul_(2).sub_(1)
     
-    return normalized_tensor.unsqueeze(0)
+    # Reshape tensor to have an additional dimension
+    return tensor.unsqueeze(0)
 
 waveform_norm = []
 
 for tensor in data_waveform_raw:
     waveform_norm.extend(normalize_tensor(tensor))
 
+print('Splitting data')
 # Splitting all tensors up into 
-def split_tensor(tensor, split_length=160): # 160 samples is chosen to get 10 ms from the signal.
+def split_tensor(tensor, split_length=160):
     tensor_length = tensor.size(1)
     num_splits = tensor_length // split_length
-    split_tensors = []
+    
     for i in range(num_splits):
-        split_tensors.append(tensor[:, i * split_length : (i + 1) * split_length])
-    return split_tensors
+        yield tensor[:, i * split_length : (i + 1) * split_length]
 
 waveform = []
 
@@ -47,14 +52,11 @@ for tensor in waveform_norm:
     waveform.extend(split_tensor(tensor))
 
 # Split dataset into training, validation and testsets 
-waveform_train, waveform_val, waveform_test = torch.utils.data.random_split(waveform, [int(0.7*len(waveform)+1),int(0.2*len(waveform)),int(0.1*len(waveform))])
+waveform_train, waveform_val, waveform_test = torch.utils.data.random_split(waveform, [int(0.7*len(waveform)),int(0.2*len(waveform)),int(0.1*len(waveform))])
 # Setting up a data loader to manage batchsize and so on.
 data_loader = torch.utils.data.DataLoader(dataset=waveform_train, batch_size= batchsize, shuffle= True,)
 dataiter = iter(data_loader)
 waweform = next(dataiter)
-
-# Defining the device, so the model is trained with a cuda device if available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define model 
 class Autoencoder(nn.Module):
@@ -65,31 +67,73 @@ class Autoencoder(nn.Module):
             nn.Conv1d(1,4,7,1, padding = 'same'),
             nn.RReLU(),
             # Dilation kernals
-            nn.Conv1d(4,8,5,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(4,8,3,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,3,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,3,1, dilation= 9, padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(8,8,5,1, dilation= 1, padding = 'same'),
             nn.Conv1d(8,8,1,1, padding = 'same'),
             nn.Conv1d(8,8,5,1, dilation= 3, padding = 'same'),
             nn.Conv1d(8,8,1,1, padding = 'same'),
             nn.Conv1d(8,8,5,1, dilation= 9, padding = 'same'),
             nn.Conv1d(8,8,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(8,8,7,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,7,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,7,1, dilation= 9, padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
             # Convolution to reduce dimension
             nn.Conv1d(8,16,4,2, padding= 2),
             nn.RReLU(),
+            # Dilation kernals
+            nn.Conv1d(16,16,3,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 9, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
             # Dilation kernals
             nn.Conv1d(16,16,5,1, dilation= 1, padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 3, padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 9, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(16,16,7,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 9, padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
             # Convolution to reduce dimension
             nn.Conv1d(16,16,4,2),
             nn.RReLU(),
             # Dilation kernals
+            nn.Conv1d(16,16,3,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 9, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            # Dilation kernals
             nn.Conv1d(16,16,5,1, dilation= 1, padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 3, padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 9, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(16,16,7,1, dilation= 1, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 3, padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 9, padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
             # Convolution to reduce dimension
             nn.Conv1d(16,16,4,2),
@@ -103,15 +147,12 @@ class Autoencoder(nn.Module):
             # Transpose convoluiton to upsample 
             nn.ConvTranspose1d(16,16,3,2, padding= 0, output_padding= 1),
             # Dilation kernals
-            nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 1,padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
-            nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 3,padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
-            nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 9,padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
-            nn.RReLU(),
-            # Transpose convolution to upsample
-            nn.ConvTranspose1d(16,16,3,2, padding= 0, output_padding= 1),
             # Dilation kernals
             nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
@@ -119,15 +160,60 @@ class Autoencoder(nn.Module):
             nn.Conv1d(16,16,1,1, padding = 'same'),
             nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
             nn.Conv1d(16,16,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(16,16,7,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.RReLU(),
+            # Transpose convolution to upsample
+            nn.ConvTranspose1d(16,16,3,2, padding= 0, output_padding= 1),
+            # Dilation kernals
+            nn.Conv1d(16,16,3,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,3,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(16,16,5,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(16,16,7,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
+            nn.Conv1d(16,16,7,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(16,16,1,1, padding = 'same'),
             nn.RReLU(),
             # Transpose convoluiton to upsample
             nn.ConvTranspose1d(16,8,5,2, padding= 0, output_padding= 1),
+            # Dilation kernals
+            nn.Conv1d(8,8,3,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,3,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,3,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
             # Dilation kernals
             nn.Conv1d(8,8,5,1, dilation= 1,padding = 'same'),
             nn.Conv1d(8,8,1,1, padding = 'same'),
             nn.Conv1d(8,8,5,1, dilation= 3,padding = 'same'),
             nn.Conv1d(8,8,1,1, padding = 'same'),
             nn.Conv1d(8,8,5,1, dilation= 9,padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            # Dilation kernals
+            nn.Conv1d(8,8,7,1, dilation= 1,padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,7,1, dilation= 3,padding = 'same'),
+            nn.Conv1d(8,8,1,1, padding = 'same'),
+            nn.Conv1d(8,8,7,1, dilation= 9,padding = 'same'),
             nn.Conv1d(8,4,1,1, padding = 'same'),
             nn.RReLU(),
             nn.Conv1d(4,1,5,1, padding='same'),
@@ -147,7 +233,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 #print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
 # Train model
-epochs = 2
+epochs = 150
 epochs_plot = []
 output = []
 train_loss_plot = []
@@ -173,7 +259,7 @@ for epoch in range(epochs):
     val_loss_plot.append(val_loss.item())
     epochs_plot.append(epoch + 1)
 
-    #print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and Validation loss: {val_loss.item():.6f}')
+    print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and Validation loss: {val_loss.item():.6f}')
 
 print(f'Total time training {epochs} epochs, with batchsize {batchsize}')
 
@@ -182,4 +268,4 @@ plt.title('Training and Validation loss')
 plt.plot(epochs_plot, train_loss_plot, color = 'blue', label = 'Training loss')
 plt.plot(epochs_plot, val_loss_plot, color = 'red', label = 'Validation loss')
 plt.legend()
-plt.savefig('ungabungaplot.png')
+plt.savefig('/home/student.aau.dk/mlla20/p8/ungabungaplot.png')
