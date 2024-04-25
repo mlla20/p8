@@ -10,7 +10,7 @@ import numpy as np
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-batchsize = 2048
+batchsize = 1024
 # Load data
 # Link til dataset doc: https://pytorch.org/audio/main/generated/torchaudio.datasets.LIBRISPEECH.html#torchaudio.datasets.LIBRISPEECH
 data =  torchaudio.datasets.LIBRISPEECH(root = '/home/student.aau.dk/mlla20/p8/LibriSpeech', url = 'train-clean-100', download= True) 
@@ -18,7 +18,7 @@ data =  torchaudio.datasets.LIBRISPEECH(root = '/home/student.aau.dk/mlla20/p8/L
 # Defining the device, so the model is trained with a cuda device if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-print('Normalizing data')
+#print('Normalizing data')
 # Gets just the waveform from the data, that is all we need as both data, and label. 
 data_waveform_raw = [sample[0] for sample in data]
 
@@ -34,14 +34,14 @@ def normalize_tensor(tensor):
     # Reshape tensor to have an additional dimension
     return tensor.unsqueeze(0)
 
-waveform_norm = []
+#waveform_norm = []
 
-for tensor in data_waveform_raw:
-    waveform_norm.extend(normalize_tensor(tensor))
+#for tensor in data_waveform_raw:
+#    waveform_norm.extend(normalize_tensor(tensor))
 
 print('Splitting data')
 # Splitting all tensors up into 
-def split_tensor(tensor, split_length=320):
+def split_tensor(tensor, split_length=1024):
     tensor_length = tensor.size(1)
     num_splits = tensor_length // split_length
     
@@ -50,11 +50,11 @@ def split_tensor(tensor, split_length=320):
 
 waveform = []
 
-for tensor in waveform_norm:
+for tensor in data_waveform_raw:
     waveform.extend(split_tensor(tensor))
 
 # Split dataset into training, validation and testsets 
-waveform_train, waveform_val, waveform_test = torch.utils.data.random_split(waveform, [int(0.7*len(waveform)),int(0.2*len(waveform)),int(0.1*len(waveform))])
+waveform_train, waveform_val = torch.utils.data.random_split(waveform, [int(0.5*len(waveform))+(len(waveform)-2*int(0.5*len(waveform))),int(0.5*len(waveform))])
 # Setting up a data loader to manage batchsize and so on.
 data_loader = torch.utils.data.DataLoader(dataset=waveform_train, batch_size= batchsize, shuffle= True,)
 dataiter = iter(data_loader)
@@ -163,9 +163,9 @@ class Encoder(nn.Module):
             nn.ELU(),
             EncoderBlock(out_channels=8*C, stride=2),
             nn.ELU(),
-            #EncoderBlock(out_channels=16*C, stride=2),
-            #nn.ELU(),
-            CausalConv1d(in_channels=8*C, out_channels=D, kernel_size=3)
+            EncoderBlock(out_channels=16*C, stride=2),
+            nn.ELU(),
+            CausalConv1d(in_channels=16*C, out_channels=D, kernel_size=3)
         )
 
     def forward(self, x):
@@ -177,10 +177,10 @@ class Decoder(nn.Module):
         super().__init__()
         
         self.layers = nn.Sequential(
-            CausalConv1d(in_channels=D, out_channels=8*C, kernel_size=7),
+            CausalConv1d(in_channels=D, out_channels=16*C, kernel_size=7),
             nn.ELU(),
-            #DecoderBlock(out_channels=8*C, stride=2),
-            #nn.ELU(),
+            DecoderBlock(out_channels=8*C, stride=2),
+            nn.ELU(),
             DecoderBlock(out_channels=4*C, stride=2),
             nn.ELU(),
             DecoderBlock(out_channels=2*C, stride=2),
@@ -217,9 +217,9 @@ class SoundStream(nn.Module):
     
 model = SoundStream(1, 1).to(device)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 
-epochs = 150
+epochs = 100
 epochs_plot = []
 output = []
 train_loss_plot = []
@@ -254,4 +254,4 @@ plt.title('Training and Validation loss')
 plt.plot(epochs_plot, train_loss_plot, color = 'blue', label = 'Training loss')
 plt.plot(epochs_plot, val_loss_plot, color = 'red', label = 'Validation loss')
 plt.legend()
-plt.savefig('/home/student.aau.dk/mlla20/p8/first_SS.png')
+plt.savefig('/home/student.aau.dk/mlla20/p8/plots/second_SS.png')
