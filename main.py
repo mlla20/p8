@@ -261,8 +261,6 @@ for epoch in range(epochs):
 
     print(f'Epoch: {epoch + 1}, Training loss: {loss.item():.6f}, and Validation loss: {val_loss.item():.6f}')
 
-print(f'Total time training {epochs} epochs, with batchsize {batchsize}')
-
 plt.figure()
 plt.title('Training and Validation loss')
 plt.plot(epochs_plot, train_loss_plot, color = 'blue', label = 'Training loss')

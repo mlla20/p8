@@ -11,14 +11,17 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 batchsize = 1024
-# Load data
-# Link til dataset doc: https://pytorch.org/audio/main/generated/torchaudio.datasets.LIBRISPEECH.html#torchaudio.datasets.LIBRISPEECH
-data =  torchaudio.datasets.LIBRISPEECH(root = '/home/student.aau.dk/mlla20/p8/LibriSpeech', url = 'train-clean-100', download= True) 
+file_path = "p8/tensors_waveform_train_clean_100_split160.pt"
 
 # Defining the device, so the model is trained with a cuda device if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-#print('Normalizing data')
+"""
+# Load data
+# Link til dataset doc: https://pytorch.org/audio/main/generated/torchaudio.datasets.LIBRISPEECH.html#torchaudio.datasets.LIBRISPEECH
+data =  torchaudio.datasets.LIBRISPEECH(root = '/home/student.aau.dk/mlla20/p8/LibriSpeech', url = 'train-clean-100', download= True) 
+
+print('Normalizing data')
 # Gets just the waveform from the data, that is all we need as both data, and label. 
 data_waveform_raw = [sample[0] for sample in data]
 
@@ -34,14 +37,14 @@ def normalize_tensor(tensor):
     # Reshape tensor to have an additional dimension
     return tensor.unsqueeze(0)
 
-#waveform_norm = []
+waveform_norm = []
 
-#for tensor in data_waveform_raw:
-#    waveform_norm.extend(normalize_tensor(tensor))
+for tensor in data_waveform_raw:
+    waveform_norm.extend(normalize_tensor(tensor))
 
 print('Splitting data')
 # Splitting all tensors up into 
-def split_tensor(tensor, split_length=1024):
+def split_tensor(tensor, split_length=160):
     tensor_length = tensor.size(1)
     num_splits = tensor_length // split_length
     
@@ -50,8 +53,11 @@ def split_tensor(tensor, split_length=1024):
 
 waveform = []
 
-for tensor in data_waveform_raw:
+for tensor in waveform_norm:
     waveform.extend(split_tensor(tensor))
+
+"""
+waveform = torch.load(file_path)
 
 # Split dataset into training, validation and testsets 
 waveform_train, waveform_val = torch.utils.data.random_split(waveform, [int(0.5*len(waveform))+(len(waveform)-2*int(0.5*len(waveform))),int(0.5*len(waveform))])
@@ -67,7 +73,6 @@ class CausalConv1d(nn.Conv1d):
 
     def forward(self, x):
         return self._conv_forward(F.pad(x, [self.causal_padding, 0]), self.weight, self.bias)
-
 
 class CausalConvTranspose1d(nn.ConvTranspose1d):
     def __init__(self, *args, **kwargs):
@@ -85,7 +90,6 @@ class CausalConvTranspose1d(nn.ConvTranspose1d):
             x, self.weight, self.bias, self.stride, self.padding,
             output_padding, self.groups, self.dilation)[...,:-self.causal_padding]
 
-
 class ResidualUnit(nn.Module):
     def __init__(self, in_channels, out_channels, dilation):
         super().__init__()
@@ -101,8 +105,7 @@ class ResidualUnit(nn.Module):
         )
 
     def forward(self, x):
-        return self.layers(x)
-
+        return self.layers(x) + x
 
 class EncoderBlock(nn.Module):
     def __init__(self, out_channels, stride):
@@ -124,7 +127,6 @@ class EncoderBlock(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
-
 
 class DecoderBlock(nn.Module):
     def __init__(self, out_channels, stride):
@@ -149,7 +151,6 @@ class DecoderBlock(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
-
 class Encoder(nn.Module):
     def __init__(self, C, D):
         super().__init__()
@@ -170,7 +171,6 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
-
 
 class Decoder(nn.Module):
     def __init__(self, C, D):
@@ -193,7 +193,6 @@ class Decoder(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
-
 class SoundStream(nn.Module):
     def __init__(self, C, D):
         super().__init__()
@@ -215,9 +214,12 @@ class SoundStream(nn.Module):
         #print("Decoder output shape:", o.shape)
         return o
     
-model = SoundStream(1, 1).to(device)
+model = SoundStream(4, 1).to(device)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+
+print(sum(p.numel() for p in model.parameters()))
+print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
 epochs = 100
 epochs_plot = []
